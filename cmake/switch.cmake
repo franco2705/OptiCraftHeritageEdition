@@ -32,23 +32,44 @@ target_compile_options(OptiCraft PRIVATE -march=armv8-a+crc -mtp=soft -fPIE
 target_include_directories(OptiCraft PRIVATE "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/src/pc"
     "${CMAKE_SOURCE_DIR}/external/stb" "${LIBNX}/include")
 target_link_directories(OptiCraft PRIVATE "${LIBNX}/lib")
-target_link_libraries(OptiCraft PRIVATE nx m)
-target_link_options(OptiCraft PRIVATE
-    "-specs=${LIBNX}/switch.specs"
-    -march=armv8-a+crc
-    -mtp=soft
-    -fPIE
-    "-Wl,-Map,${CMAKE_BINARY_DIR}/OptiCraft.map"
-    -Wl,--gc-sections
-)
 
+# The diagnostic deliberately depends only on libnx. zlib is a Switch portlib
+# used by the game's region/minizip code; requiring it for bring-up prevents the
+# hardware test from linking on an otherwise complete switch-dev install.
+set(_SWITCH_LIBS nx m)
+if(NOT SWITCH_BRINGUP)
+    set(SWITCH_PORTLIBS "${DEVKITPRO}/portlibs/switch")
+    find_library(SWITCH_ZLIB NAMES z HINTS "${SWITCH_PORTLIBS}/lib"
+        NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    if(NOT SWITCH_ZLIB)
+        message(FATAL_ERROR
+            "Switch full game requires switch-zlib. Install it with: dkp-pacman -S switch-zlib")
+    endif()
+    target_include_directories(OptiCraft PRIVATE "${SWITCH_PORTLIBS}/include")
+    target_link_directories(OptiCraft PRIVATE "${SWITCH_PORTLIBS}/lib")
+    list(APPEND _SWITCH_LIBS z)
 find_program(SWITCH_ELF2NRO NAMES elf2nro HINTS "${DEVKITPRO}/tools/bin")
 find_program(SWITCH_NACPTOOL NAMES nacptool HINTS "${DEVKITPRO}/tools/bin")
 if(NOT SWITCH_ELF2NRO OR NOT SWITCH_NACPTOOL)
     message(FATAL_ERROR
         "elf2nro and nacptool are required. Install devkitPro's switch-tools package.")
 endif()
+target_link_libraries(OptiCraft PRIVATE ${_SWITCH_LIBS})
+target_link_options(OptiCraft PRIVATE "-specs=${LIBNX}/switch.specs" -march=armv8-a+crc -mtp=soft -fPIE
+    "-Wl,-Map,${CMAKE_BINARY_DIR}/OptiCraft.map" -Wl,--gc-sections)
 
+find_program(SWITCH_NACPTOOL NAMES nacptool HINTS "${DEVKITPRO}/tools/bin" REQUIRED)
+find_program(SWITCH_ELF2NRO NAMES elf2nro HINTS "${DEVKITPRO}/tools/bin" REQUIRED)
+set(SWITCH_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/bin/switch")
+set(SWITCH_NACP "${CMAKE_CURRENT_BINARY_DIR}/OptiCraft.nacp")
+add_custom_command(OUTPUT "${SWITCH_NACP}" COMMAND "${SWITCH_NACPTOOL}" --create
+    "OptiCraft Heritage Edition" "OptiCraft contributors" "1.0.0" "${SWITCH_NACP}" VERBATIM)
+add_custom_target(switch-nacp DEPENDS "${SWITCH_NACP}")
+add_dependencies(OptiCraft switch-nacp)
+add_custom_command(TARGET OptiCraft POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${SWITCH_OUTPUT_DIR}"
+    COMMAND "${SWITCH_ELF2NRO}" "$<TARGET_FILE:OptiCraft>" "${SWITCH_OUTPUT_DIR}/OptiCraft.nro" "--nacp=${SWITCH_NACP}"
+    COMMENT "elf2nro: ${SWITCH_OUTPUT_DIR}/OptiCraft.nro" VERBATIM)
 # Keep these values in the cache so release builds can supply their own
 # Homebrew Menu metadata without changing the build scripts.
 set(SWITCH_TITLE "OptiCraft Heritage Edition" CACHE STRING "NRO application title")

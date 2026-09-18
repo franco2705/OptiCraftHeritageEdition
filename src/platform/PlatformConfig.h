@@ -191,7 +191,7 @@
 #endif
 
 #ifndef PLATFORM_PC
-#  if PLATFORM_PS2 || PLATFORM_WII
+#  if PLATFORM_PS2 || PLATFORM_WII || PLATFORM_SWITCH
 #    define PLATFORM_PC 0
 #  else
 #    define PLATFORM_PC 1
