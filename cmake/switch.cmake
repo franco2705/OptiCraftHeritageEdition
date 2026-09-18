@@ -1,28 +1,36 @@
-# Native Nintendo Switch Homebrew bring-up target.
+# Nintendo Switch (devkitA64/libnx) build. SWITCH_BRINGUP keeps the small
+# diagnostic executable; OFF builds the game with Switch-native backends.
 cmake_minimum_required(VERSION 3.21)
+include(${CMAKE_SOURCE_DIR}/cmake/SourceSelection.cmake)
+option(SWITCH_BRINGUP "Build only the native Switch hardware diagnostic" OFF)
+option(SWITCH_ENABLE_SOUND "Enable Switch audio" OFF)
+set(MC_LOG_LEVEL "0" CACHE STRING "Unified diagnostic verbosity")
 
-option(SWITCH_BRINGUP "Build the native Switch hardware smoke test" ON)
-if(NOT SWITCH_BRINGUP)
-    message(FATAL_ERROR "The Switch full-game target is not implemented yet; build with -DSWITCH_BRINGUP=ON.")
+if(SWITCH_BRINGUP)
+    set(SWITCH_SOURCES "${CMAKE_SOURCE_DIR}/src/switch/tools/SwitchBringup.cpp")
+    message(STATUS "Switch build: BRINGUP diagnostics")
+else()
+    mcbeta_collect_platform_sources(SWITCH_SOURCES switch)
+    set(SWITCH_MINIZIP_SOURCES
+        "${CMAKE_SOURCE_DIR}/external/zlib/contrib/minizip/ioapi.c"
+        "${CMAKE_SOURCE_DIR}/external/zlib/contrib/minizip/unzip.c")
+    list(APPEND SWITCH_SOURCES ${SWITCH_MINIZIP_SOURCES})
+    set_source_files_properties(${SWITCH_MINIZIP_SOURCES} PROPERTIES COMPILE_DEFINITIONS USE_FILE32API)
+    mcbeta_exclude_sources(SWITCH_SOURCES "[/\\]switch[/\\]tools[/\\]SwitchBringup\\.cpp$")
+    mcbeta_exclude_remote_stats_sources(SWITCH_SOURCES)
+    mcbeta_select_platform_backends(SWITCH_SOURCES SWITCH SWITCH SWITCH)
+    message(STATUS "Switch build: FULL game")
 endif()
 
-add_executable(OptiCraft "${CMAKE_SOURCE_DIR}/src/switch/tools/SwitchBringup.cpp")
-set_target_properties(OptiCraft PROPERTIES
-    SUFFIX ".elf"
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS NO
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/switch"
-)
-target_compile_definitions(OptiCraft PRIVATE SWITCH_PLATFORM=1)
-target_compile_options(OptiCraft PRIVATE
-    -march=armv8-a+crc
-    -mtp=soft
-    -fPIE
-    -ffunction-sections
-    -fdata-sections
-)
-target_include_directories(OptiCraft PRIVATE "${LIBNX}/include")
+add_executable(OptiCraft ${SWITCH_SOURCES})
+set_target_properties(OptiCraft PROPERTIES SUFFIX ".elf" CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/switch")
+target_compile_definitions(OptiCraft PRIVATE SWITCH_PLATFORM=1 NO_NETWORK
+    MC_LOG_LEVEL=${MC_LOG_LEVEL} $<$<NOT:$<BOOL:${SWITCH_ENABLE_SOUND}>>:NO_SOUND>)
+target_compile_options(OptiCraft PRIVATE -march=armv8-a+crc -mtp=soft -fPIE
+    -ffunction-sections -fdata-sections -fno-math-errno -fno-trapping-math)
+target_include_directories(OptiCraft PRIVATE "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/src/pc"
+    "${CMAKE_SOURCE_DIR}/external/stb" "${LIBNX}/include")
 target_link_directories(OptiCraft PRIVATE "${LIBNX}/lib")
 target_link_libraries(OptiCraft PRIVATE nx m)
 target_link_options(OptiCraft PRIVATE
@@ -95,10 +103,6 @@ endif()
 
 add_custom_target(switch-data
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SWITCH_OUTPUT_DIR}/data"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/data/assets" "${SWITCH_OUTPUT_DIR}/data/assets"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/data/resources" "${SWITCH_OUTPUT_DIR}/data/resources"
-    COMMENT "Staging game data for the future Switch port"
-    VERBATIM
-)
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/data/assets" "${SWITCH_OUTPUT_DIR}/data/assets"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_SOURCE_DIR}/data/resources" "${SWITCH_OUTPUT_DIR}/data/resources"
+    COMMENT "Staging Switch runtime data" VERBATIM)

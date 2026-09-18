@@ -44,15 +44,12 @@ The Wii build uses devkitPPC/libogc and a native GX rendering path. The Homebrew
 apps/OptiCraft/
 ```
 
-### Nintendo Switch Homebrew (bring-up)
+### Nintendo Switch Homebrew
 
-The native Switch port starts with an independent `devkitA64`/`libnx` bring-up
-application. It is not a Wii or PS2 conversion: the final port will provide
-Switch-specific graphics, input, audio, storage, and lifecycle backends. The
-bring-up binary checks video, controller input, SD storage, and the applet exit
-path before shared game code is introduced.
-
-Its deployable output is:
+The Switch port has two deliberately separate paths: a small `devkitA64`/libnx
+hardware diagnostic and the full game. The game uses Switch-specific graphics,
+Joy-Con/Pro Controller input, SD storage, and applet lifecycle backends; it does
+not reuse either legacy console renderer. Both paths produce:
 
 ```text
 bin/switch/OptiCraft.nro
@@ -133,12 +130,18 @@ Use `wii-debug` for a debug build and `wii-bringup` for the minimal hardware/too
 
 ### Nintendo Switch Homebrew
 
-Install the devkitPro `switch-dev` package group, then configure and build the
-native smoke test:
+Install the devkitPro `switch-dev` package group. Two presets intentionally keep
+hardware diagnosis separate from the game:
 
 ```text
+# Minimal libnx/controller/framebuffer diagnostic
 cmake --preset switch-bringup
 cmake --build --preset switch-bringup
+
+# Playable full-game target
+cmake --preset switch-release
+cmake --build --preset switch-release
+cmake --build build/switch-release --target switch-data
 ```
 
 The default build uses `nacptool` to create Homebrew Menu metadata and
