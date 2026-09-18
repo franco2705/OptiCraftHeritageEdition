@@ -6,7 +6,7 @@ This repository is not intended to be a line-for-line source translation. The ru
 
 ## Project goals
 
-- Keep the implementation portable across desktop PC, PlayStation 2, and Nintendo Wii.
+- Keep the implementation portable across desktop PC, PlayStation 2, Nintendo Wii, and native Nintendo Switch Homebrew.
 - Preserve the intended classic gameplay and visual behavior where practical while allowing platform-specific adaptations.
 - Run on constrained hardware through aggressive memory, rendering, chunk, and asset-loading optimizations.
 - Keep platform code isolated behind explicit backends instead of scattering host-specific logic through the game code.
@@ -44,6 +44,20 @@ The Wii build uses devkitPPC/libogc and a native GX rendering path. The Homebrew
 apps/OptiCraft/
 ```
 
+### Nintendo Switch Homebrew (bring-up)
+
+The native Switch port starts with an independent `devkitA64`/`libnx` bring-up
+application. It is not a Wii or PS2 conversion: the final port will provide
+Switch-specific graphics, input, audio, storage, and lifecycle backends. The
+bring-up binary checks video, controller input, SD storage, and the applet exit
+path before shared game code is introduced.
+
+Its deployable output is:
+
+```text
+bin/switch/OptiCraft.nro
+```
+
 ## Source layout
 
 ```text
@@ -54,6 +68,7 @@ src/
   platform/     Shared platform interfaces and backend selection
   pc/           Desktop-specific implementation
   ps2/          PlayStation 2 implementation
+  switch/       Nintendo Switch Homebrew implementation
   wii/          Nintendo Wii implementation
   util/         Shared utility code
 
@@ -115,6 +130,20 @@ cmake --build --preset wii-release
 ```
 
 Use `wii-debug` for a debug build and `wii-bringup` for the minimal hardware/toolchain bring-up target.
+
+### Nintendo Switch Homebrew
+
+Install the devkitPro `switch-dev` package group, then configure and build the
+native smoke test:
+
+```text
+cmake --preset switch-bringup
+cmake --build --preset switch-bringup
+```
+
+Copy `bin/switch/OptiCraft.nro` to `sdmc:/switch/OptiCraft/OptiCraft.nro`.
+Use a Homebrew-enabled Switch only; this project does not provide instructions
+for modifying a console.
 
 ## Development notes
 
