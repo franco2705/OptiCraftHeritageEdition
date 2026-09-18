@@ -319,7 +319,7 @@ declares."
 // This is deliberately NOT tied to PLATFORM_CONSOLE_LOW: it is a backend
 // capability question, not a performance budget.
 #ifndef PLATFORM_FONT_IMMEDIATE
-#  if PLATFORM_PS2 || PLATFORM_WII
+#  if PLATFORM_PS2 || PLATFORM_WII || PLATFORM_SWITCH
 #    define PLATFORM_FONT_IMMEDIATE 1
 #  else
 #    define PLATFORM_FONT_IMMEDIATE 0
@@ -331,7 +331,7 @@ declares."
 // once into a native GX display list, PS2 into a captured RAM mesh, and both
 // replay it against the live animated modelview.
 #ifndef PLATFORM_MODEL_IMMEDIATE
-#  define PLATFORM_MODEL_IMMEDIATE 0
+#  define PLATFORM_MODEL_IMMEDIATE PLATFORM_SWITCH
 #endif
 
 // Persistent native meshes are a backend capability. Wii records immutable GX
@@ -360,7 +360,7 @@ declares."
 // where they are aiming. Both console backends feed lwjgl::Mouse from a stick
 // (PS2) or the Wiimote IR pointer (Wii), so the coordinates are already there.
 #ifndef PLATFORM_SOFTWARE_CURSOR
-#  if PLATFORM_PS2 || PLATFORM_WII
+#  if PLATFORM_PS2 || PLATFORM_WII || PLATFORM_SWITCH
 #    define PLATFORM_SOFTWARE_CURSOR 1
 #  else
 #    define PLATFORM_SOFTWARE_CURSOR 0
