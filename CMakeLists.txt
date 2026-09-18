@@ -47,6 +47,14 @@ if(NINTENDO_WII OR (DEFINED PLATFORM AND PLATFORM STREQUAL "WII"))
     return()
 endif()
 
+# Nintendo Switch Homebrew build. This starts as a deliberately small native
+# bring-up target; it shares no Wii or PS2 runtime code and is compiled with
+# devkitA64/libnx into an .nro.
+if(NINTENDO_SWITCH OR (DEFINED PLATFORM AND PLATFORM STREQUAL "SWITCH"))
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/switch.cmake)
+    return()
+endif()
+
 enable_testing()
 
 function(opticraft_add_optional_test target test_source)
