@@ -144,17 +144,21 @@ cmake --build --preset switch-release
 cmake --build build/switch-release --target switch-data
 ```
 
-Both modes run `nacptool` and `elf2nro` and produce
-`bin/switch/OptiCraft.nro`. Copy it to
-`sdmc:/switch/OptiCraft/OptiCraft.nro`. The playable target reads runtime data
-from `sdmc:/switch/OptiCraft/data`: place the repository's `data/assets` and
-`data/resources` directories there (the `switch-data` target stages the matching
-host-side tree). Saves and options are stored under
-`sdmc:/switch/OptiCraft/.minecraft`.
+The default build uses `nacptool` to create Homebrew Menu metadata and
+`elf2nro` to package the linked ELF. Application metadata can be overridden at
+configure time with `SWITCH_TITLE`, `SWITCH_AUTHOR`, and `SWITCH_VERSION`. Pass
+`-DSWITCH_ICON=/absolute/path/to/icon.jpg` to embed an optional 256x256 JPEG.
 
-`switch-bringup` remains the recommended first boot on new hardware; it does not
-include the game and is only a diagnostic. Use a Homebrew-enabled Switch only;
-this project does not provide instructions for modifying a console.
+Copy `bin/switch/OptiCraft.nro` to `sdmc:/switch/OptiCraft/OptiCraft.nro`.
+When `nxlink` is installed and a console is listening on the network, the
+`switch-nxlink` build target can send the packaged NRO directly:
+
+```text
+cmake --build --preset switch-bringup --target switch-nxlink
+```
+
+Use a Homebrew-enabled Switch only; this project does not provide instructions
+for modifying a console.
 
 ## Development notes
 
