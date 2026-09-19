@@ -5,6 +5,11 @@ include(${CMAKE_SOURCE_DIR}/cmake/SourceSelection.cmake)
 option(SWITCH_BRINGUP "Build only the native Switch hardware diagnostic" OFF)
 option(SWITCH_ENABLE_SOUND "Enable Switch audio" OFF)
 set(MC_LOG_LEVEL "0" CACHE STRING "Unified diagnostic verbosity")
+set(SWITCH_DATA_ROOT "${CMAKE_SOURCE_DIR}/data" CACHE PATH
+    "Directory containing the assets/ and resources/ runtime data trees")
+
+if(SWITCH_BRINGUP)
+    set(SWITCH_SOURCES "${CMAKE_SOURCE_DIR}/src/switch/tools/SwitchBringup.cpp")
 
 if(SWITCH_BRINGUP)
     set(SWITCH_SOURCES "${CMAKE_SOURCE_DIR}/src/switch/tools/SwitchBringup.cpp")
@@ -70,6 +75,11 @@ add_custom_command(TARGET OptiCraft POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory "${SWITCH_OUTPUT_DIR}"
     COMMAND "${SWITCH_ELF2NRO}" "$<TARGET_FILE:OptiCraft>" "${SWITCH_OUTPUT_DIR}/OptiCraft.nro" "--nacp=${SWITCH_NACP}"
     COMMENT "elf2nro: ${SWITCH_OUTPUT_DIR}/OptiCraft.nro" VERBATIM)
+add_custom_target(switch-data
+    COMMAND ${CMAKE_COMMAND}
+            "-DSOURCE_ROOT=${SWITCH_DATA_ROOT}"
+            "-DOUTPUT_ROOT=${SWITCH_OUTPUT_DIR}/data"
+            -P "${CMAKE_SOURCE_DIR}/cmake/StageSwitchData.cmake"
 find_program(SWITCH_ELF2NRO NAMES elf2nro HINTS "${DEVKITPRO}/tools/bin")
 find_program(SWITCH_NACPTOOL NAMES nacptool HINTS "${DEVKITPRO}/tools/bin")
 if(NOT SWITCH_ELF2NRO OR NOT SWITCH_NACPTOOL)

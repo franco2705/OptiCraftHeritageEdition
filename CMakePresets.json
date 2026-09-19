@@ -143,6 +143,8 @@
     },
     {
       "name": "switch-release",
+      "displayName": "Nintendo Switch Homebrew full game (Release)",
+      "description": "Full-game development build using libnx platform backends.",
       "displayName": "Nintendo Switch Homebrew (playable target)",
       "description": "Full game using the libnx input, lifecycle, SD storage, and native graphics backends.",
       "generator": "Ninja",
@@ -152,6 +154,16 @@
         "CMAKE_BUILD_TYPE": "Release",
         "PLATFORM": "SWITCH",
         "SWITCH_BRINGUP": "OFF"
+      }
+    },
+    {
+      "name": "switch-debug",
+      "displayName": "Nintendo Switch Homebrew full game (Debug)",
+      "description": "Debug full-game build using libnx platform backends.",
+      "inherits": "switch-release",
+      "binaryDir": "${sourceDir}/build/switch-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
@@ -231,8 +243,15 @@
     },
     {
       "name": "switch-release",
+      "displayName": "Build Nintendo Switch full game (Release)",
       "displayName": "Build Nintendo Switch playable target",
       "configurePreset": "switch-release",
+      "jobs": 0
+    },
+    {
+      "name": "switch-debug",
+      "displayName": "Build Nintendo Switch full game (Debug)",
+      "configurePreset": "switch-debug",
       "jobs": 0
     },
     {
