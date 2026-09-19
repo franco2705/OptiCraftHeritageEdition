@@ -1,182 +1,207 @@
-# OptiCraft Heritage
+# OptiCraft Heritage — Nintendo Switch Homebrew
 
-OptiCraft Heritage is a heavily modified, clean-room C++ implementation of classic Minecraft-era gameplay designed around portability, low-end hardware, and console-specific optimization.
+OptiCraft Heritage is a clean-room C++ implementation of classic Minecraft-era
+gameplay. This repository's primary documented target is a **native Nintendo
+Switch Homebrew NRO**, built with devkitA64 and libnx. The port uses native
+Switch input, SD-card paths, applet lifecycle handling, and a native framebuffer
+backend; it does not run through an emulator.
 
-This repository is not intended to be a line-for-line source translation. The runtime, platform layers, rendering paths, input backends, storage systems, user interface, asset loading, memory policies, and console support have been extensively reworked for the needs of this project.
+The project is independently implemented and is not affiliated with, endorsed
+by, or sponsored by Mojang Studios or Microsoft.
 
-## Project goals
+> **Console safety:** use this software only on a Switch that is already
+> Homebrew-enabled. This repository does not provide instructions for modifying
+> a console or bypassing platform security.
 
-- Keep the implementation portable across desktop PC, PlayStation 2, Nintendo Wii, and native Nintendo Switch Homebrew.
-- Preserve the intended classic gameplay and visual behavior where practical while allowing platform-specific adaptations.
-- Run on constrained hardware through aggressive memory, rendering, chunk, and asset-loading optimizations.
-- Keep platform code isolated behind explicit backends instead of scattering host-specific logic through the game code.
-- Maintain a debuggable and production-oriented C++17 codebase.
+## What is built
 
-## Clean-room implementation
+Two Switch presets are intentionally available:
 
-OptiCraft Heritage is developed as a clean-room implementation. The project code is independently implemented in C/C++ and is heavily modified around its own runtime and platform architecture.
+| Preset | Purpose | Output |
+| --- | --- | --- |
+| `switch-bringup` | Small libnx hardware diagnostic: controller, framebuffer, SD mount, and toolchain smoke test. Start here. | `bin/switch/OptiCraft.nro` |
+| `switch-release` | The full native game target, including the Switch platform backends. | `bin/switch/OptiCraft.nro` |
 
-The project does not rely on original proprietary game source code as part of its implementation. Compatibility-oriented behavior may be reproduced from observable behavior, documented formats, protocol behavior, and independently developed interfaces.
+Both builds produce a Homebrew NRO. CMake creates its NACP metadata with
+`nacptool` and packages the linked ELF with `elf2nro`. The full target additionally
+requires Switch zlib for the region/minizip code.
 
-This project is not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft.
+## Requirements
 
-## Supported targets
+Install these before configuring the project:
 
-### PC
+- CMake **3.21+** and Ninja.
+- Git, including the repository submodules.
+- devkitPro's Switch development environment: `devkitA64`, `libnx`, and the
+  Switch tools that provide `elf2nro` and `nacptool`.
+- `switch-zlib` for `switch-release`. It is not required for `switch-bringup`.
 
-The desktop build uses SDL2, OpenGL, and the shared platform abstraction layer. A dedicated 32-bit legacy profile is available for older SSE2-class CPUs and legacy OpenGL hardware.
+In the devkitPro shell, verify the installation before building:
 
-### PlayStation 2
-
-The PS2 build uses a native platform backend with PS2SDK support, GS-specific rendering, console-aware memory policies, asynchronous asset loading, platform storage, controller input, and optional VU-assisted terrain paths.
-
-The expected USB application directory is:
-
-```text
-mass:/OptiCraftHeritage/
+```bash
+echo "$DEVKITPRO"
+test -x "$DEVKITPRO/devkitA64/bin/aarch64-none-elf-g++" && echo "devkitA64: OK"
+test -f "$DEVKITPRO/libnx/include/switch.h" && echo "libnx: OK"
+test -x "$DEVKITPRO/tools/bin/elf2nro" && echo "elf2nro: OK"
+test -x "$DEVKITPRO/tools/bin/nacptool" && echo "nacptool: OK"
+test -f "$DEVKITPRO/portlibs/switch/lib/libz.a" && echo "switch-zlib: OK"
 ```
 
-### Nintendo Wii
+The expected devkitPro root is `/opt/devkitpro` on Linux or `C:/devkitPro` on
+Windows. If you installed it elsewhere, set `DEVKITPRO` to its root before
+running CMake. The toolchain requires `devkitA64`, `libnx`, and the AArch64 C++
+compiler at that location.
 
-The Wii build uses devkitPPC/libogc and a native GX rendering path. The Homebrew Channel layout remains:
+### Windows
 
-```text
-apps/OptiCraft/
+Use the **devkitPro MSYS** shell, not a generic MSYS2 `CLANG64` shell. In that
+shell, `dkp-pacman -Q switch-dev libnx switch-zlib` should list the packages
+after installation. If your devkitPro directory is `C:\devkitPro`, the MSYS
+shell value is normally:
+
+```bash
+export DEVKITPRO=/c/devkitPro
 ```
 
-### Nintendo Switch Homebrew
+## Get the source
 
-The Switch port has two deliberately separate paths: a small `devkitA64`/libnx
-hardware diagnostic and the full game. The game uses Switch-specific graphics,
-Joy-Con/Pro Controller input, SD storage, and applet lifecycle backends; it does
-not reuse either legacy console renderer. Both paths produce:
+Clone the repository and initialise every required third-party dependency:
 
-```text
-bin/switch/OptiCraft.nro
+```bash
+git clone --recurse-submodules <repository-url> OptiCraftHeritageEdition
+cd OptiCraftHeritageEdition
 ```
 
-## Source layout
+For an existing checkout, use:
 
-```text
-src/
-  client/       Client-side shared code
-  java/         Java compatibility/runtime helpers
-  net/          Game implementation
-  platform/     Shared platform interfaces and backend selection
-  pc/           Desktop-specific implementation
-  ps2/          PlayStation 2 implementation
-  switch/       Nintendo Switch Homebrew implementation
-  wii/          Nintendo Wii implementation
-  util/         Shared utility code
-
-cmake/          Toolchains, source selection, and platform build logic
-external/       Third-party dependencies
+```bash
+git submodule update --init --recursive
 ```
 
-Platform targets deliberately select one implementation for each public backend. This keeps PC, PS2, and Wii implementations from accidentally entering the same link target.
+## Build the Switch port
 
-## Building
+### 1. First build: hardware bring-up
 
-CMake 3.21 or newer is required. Presets are defined in `CMakePresets.json`.
+Always build and boot the diagnostic first. It proves that CMake sees devkitA64,
+libnx, `nacptool`, and `elf2nro`, then checks basic Switch runtime services.
 
-### Desktop
-
-```text
-cmake --preset gcc-debug
-cmake --build --preset gcc-debug
-```
-
-For a normal optimized build:
-
-```text
-cmake --preset gcc-release
-cmake --build --preset gcc-release
-```
-
-### 32-bit / legacy PC
-
-The CMake presets do not hardcode an MSYS2 installation path. On Windows, use:
-
-```text
-build_gcc32.bat legacy
-```
-
-The batch file owns the local MSYS2 installation path instead of exposing it through CMake. To use another installation without editing the project:
-
-```bat
-set OPTICRAFT_MSYS2_ROOT=D:\Tools\msys64
-build_gcc32.bat legacy
-```
-
-The accepted modes are `debug`, `release`, and `legacy`.
-
-### PlayStation 2
-
-```text
-cmake --preset ps2-release
-cmake --build --preset ps2-release
-```
-
-Use `ps2-debug` for a debug build. Asset staging remains a separate step so large runtime data is not recopied after every link.
-
-### Nintendo Wii
-
-```text
-cmake --preset wii-release
-cmake --build --preset wii-release
-```
-
-Use `wii-debug` for a debug build and `wii-bringup` for the minimal hardware/toolchain bring-up target.
-
-### Nintendo Switch Homebrew
-
-Install the devkitPro `switch-dev` package group. Two presets intentionally keep
-hardware diagnosis separate from the game:
-
-```text
-# Minimal libnx/controller/framebuffer diagnostic
+```bash
 cmake --preset switch-bringup
 cmake --build --preset switch-bringup
+```
 
-# Playable full-game target
+Copy the resulting NRO to the SD card:
+
+```text
+sdmc:/switch/OptiCraft/OptiCraft.nro
+```
+
+Launch it from the Homebrew Menu. It is a diagnostic, not the game.
+
+### 2. Full native game target
+
+Once bring-up works, configure and build the full port:
+
+```bash
 cmake --preset switch-release
 cmake --build --preset switch-release
+```
+
+The presets select the Switch toolchain, `PLATFORM=SWITCH`, and either the
+bring-up or full-game source set.
+
+### 3. Stage runtime data
+
+The NRO does **not** embed the game's loose runtime data. For a playable full
+target, provide the following source directories yourself:
+
+```text
+data/assets/
+data/resources/
+```
+
+Then stage them next to the NRO:
+
+```bash
 cmake --build build/switch-release --target switch-data
 ```
 
-Both modes run `nacptool` and `elf2nro` and produce
-`bin/switch/OptiCraft.nro`. Copy it to
-`sdmc:/switch/OptiCraft/OptiCraft.nro`. The playable target reads runtime data
-from `sdmc:/switch/OptiCraft/data`: place the repository's `data/assets` and
-`data/resources` directories there (the `switch-data` target stages the matching
-host-side tree). Saves and options are stored under
-`sdmc:/switch/OptiCraft/.minecraft`.
-
-`switch-bringup` remains the recommended first boot on new hardware; it does not
-include the game and is only a diagnostic. Use a Homebrew-enabled Switch only;
-this project does not provide instructions for modifying a console.
-The default build uses `nacptool` to create Homebrew Menu metadata and
-`elf2nro` to package the linked ELF. Application metadata can be overridden at
-configure time with `SWITCH_TITLE`, `SWITCH_AUTHOR`, and `SWITCH_VERSION`. Pass
-`-DSWITCH_ICON=/absolute/path/to/icon.jpg` to embed an optional 256x256 JPEG.
-
-Copy `bin/switch/OptiCraft.nro` to `sdmc:/switch/OptiCraft/OptiCraft.nro`.
-When `nxlink` is installed and a console is listening on the network, the
-`switch-nxlink` build target can send the packaged NRO directly:
+This creates the host-side deployment layout:
 
 ```text
+bin/switch/
+├── OptiCraft.nro
+└── data/
+    ├── assets/
+    └── resources/
+```
+
+Copy its contents to the SD card so the final layout is:
+
+```text
+sdmc:/switch/OptiCraft/
+├── OptiCraft.nro
+├── data/
+│   ├── assets/
+│   └── resources/
+└── .minecraft/              # created for saves and options
+```
+
+The Switch resource backend reads `sdmc:/switch/OptiCraft/data`, and the
+client-policy backend stores saves/options at
+`sdmc:/switch/OptiCraft/.minecraft`.
+
+> The `data/assets` and `data/resources` directories are not present in every
+> source checkout. `switch-data` can only copy data you have supplied; it cannot
+> generate missing game assets.
+
+## Customise the Homebrew Menu entry
+
+Set metadata at configure time. `SWITCH_ICON` must point to an existing
+256×256 JPEG:
+
+```bash
+cmake --preset switch-release \
+  -DSWITCH_TITLE="OptiCraft Heritage" \
+  -DSWITCH_AUTHOR="Your name" \
+  -DSWITCH_VERSION="1.0.0" \
+  -DSWITCH_ICON="/absolute/path/to/icon.jpg"
+cmake --build --preset switch-release
+```
+
+The packaging target validates the icon path and passes these values to
+`nacptool`/`elf2nro`.
+
+## Optional network deployment
+
+If `nxlink` is installed and the console is listening, send the packaged NRO
+directly with:
+
+```bash
 cmake --build --preset switch-bringup --target switch-nxlink
 ```
 
-Use a Homebrew-enabled Switch only; this project does not provide instructions
-for modifying a console.
+`switch-nxlink` is created only when the tool is available.
 
-## Development notes
+## Troubleshooting
 
-OptiCraft Heritage contains substantial platform-specific changes compared with the behavior it reproduces. Examples include custom render backends, legacy UI work, low-memory chunk policies, console input layers, asset streaming, platform storage, audio backends, profiling, and console-specific performance tuning.
+| Error | Fix |
+| --- | --- |
+| `devkitPro Switch SDK not found` | Set `DEVKITPRO` to the directory containing `devkitA64` and `libnx`, then configure again. |
+| `aarch64-none-elf-g++ not found` | Install the devkitA64 component of devkitPro. |
+| `elf2nro and nacptool are required` | Install the devkitPro Switch tools. |
+| `Switch full game requires switch-zlib` | Install `switch-zlib`, then rerun the `switch-release` configure command. |
+| `switch-data` fails | Add the missing `data/assets` and `data/resources` directories before staging. |
 
-When changing shared systems, keep the platform abstraction boundary intact and avoid introducing PC-only assumptions into common code. Likewise, console-specific optimizations should remain behind platform policies or dedicated backends whenever possible.
+These checks are enforced by the Switch toolchain and build configuration.
+
+## Other targets
+
+The repository also retains PC, PlayStation 2, and Nintendo Wii code paths.
+Their presets are listed in `CMakePresets.json`; Switch instructions above are
+the supported primary workflow in this README.
 
 ## Third-party software
 
-Third-party libraries are kept under `external/` and retain their respective licenses and notices. Review those licenses independently before redistributing binaries.
+Third-party libraries are located under `external/` and retain their respective
+licenses and notices. Review those licences before redistributing binaries.
