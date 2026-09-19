@@ -73,6 +73,12 @@ git clone --recurse-submodules <repository-url> OptiCraftHeritageEdition
 cd OptiCraftHeritageEdition
 ```
 
+### Nintendo Switch Homebrew
+
+The Switch port has two deliberately separate paths: a small `devkitA64`/libnx
+hardware diagnostic and the full game. The game uses Switch-specific graphics,
+Joy-Con/Pro Controller input, SD storage, and applet lifecycle backends; it does
+not reuse either legacy console renderer. Both paths produce:
 For an existing checkout, use:
 
 ```bash
@@ -165,14 +171,35 @@ client-policy backend stores saves/options at
 
 ### Optional: hardware bring-up diagnostic
 
+Install the devkitPro `switch-dev` package group. Two presets intentionally keep
+hardware diagnosis separate from the game:
+
+```text
+# Minimal libnx/controller/framebuffer diagnostic
 Use this only to diagnose the toolchain, controller, framebuffer, or SD card;
 it intentionally does not enter the game:
 
 ```bash
 cmake --preset switch-bringup
 cmake --build --preset switch-bringup
+
+# Full-game development target
+cmake --preset switch-release
+cmake --build --preset switch-release
+cmake --build build/switch-release --target switch-data
 ```
 
+Both modes run `nacptool` and `elf2nro` and produce
+`bin/switch/OptiCraft.nro`. Copy it to
+`sdmc:/switch/OptiCraft/OptiCraft.nro`. The playable target reads runtime data
+from `sdmc:/switch/OptiCraft/data`: place the repository's `data/assets` and
+`data/resources` directories there (the `switch-data` target stages the matching
+host-side tree). Saves and options are stored under
+`sdmc:/switch/OptiCraft/.minecraft`.
+
+`switch-bringup` remains the recommended first boot on new hardware; it does not
+include the game and is only a diagnostic. Use a Homebrew-enabled Switch only;
+this project does not provide instructions for modifying a console.
 It produces `bin/switch/OptiCraft-bringup.nro`, which may safely coexist with
 the playable `OptiCraft.nro` on the SD card.
 
