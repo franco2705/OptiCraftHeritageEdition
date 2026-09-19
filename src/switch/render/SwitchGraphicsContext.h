@@ -1,0 +1,11 @@
+#pragma once
+#include <cstdint>
+class SwitchGraphicsContext {
+public:
+ static SwitchGraphicsContext& instance();
+ bool initialize(); void shutdown(); bool alive() const; void present();
+ int width() const { return 1280; } int height() const { return 720; }
+ std::uint32_t* pixels();
+private:
+ SwitchGraphicsContext() = default; void* framebuffer_ = nullptr; std::uint32_t* pixels_ = nullptr; bool alive_ = false;
+};
