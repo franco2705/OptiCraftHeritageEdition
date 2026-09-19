@@ -19,12 +19,13 @@ Two Switch presets are intentionally available:
 
 | Preset | Purpose | Output |
 | --- | --- | --- |
-| `switch-bringup` | Small libnx hardware diagnostic: controller, framebuffer, SD mount, and toolchain smoke test. Start here. | `bin/switch/OptiCraft.nro` |
+| `switch-bringup` | Small libnx hardware diagnostic: controller, framebuffer, SD mount, and toolchain smoke test. It does not start the game. | `bin/switch/OptiCraft-bringup.nro` |
 | `switch-release` | The full native game target, including the Switch platform backends. | `bin/switch/OptiCraft.nro` |
 
-Both builds produce a Homebrew NRO. CMake creates its NACP metadata with
-`nacptool` and packages the linked ELF with `elf2nro`. The full target additionally
-requires Switch zlib for the region/minizip code.
+Both builds produce a Homebrew NRO with distinct artifact names, so building
+the diagnostic cannot overwrite the playable NRO. CMake creates its NACP
+metadata with `nacptool` and packages the linked ELF with `elf2nro`. The full
+target additionally requires Switch zlib for the region/minizip code.
 
 ## Requirements
 
@@ -80,14 +81,16 @@ git submodule update --init --recursive
 
 ## Build the Switch port
 
-### 1. First build: hardware bring-up
+### 1. Build the game
 
-Always build and boot the diagnostic first. It proves that CMake sees devkitA64,
-libnx, `nacptool`, and `elf2nro`, then checks basic Switch runtime services.
+Build `switch-release` to start OptiCraft itself. This target contains
+`main_switch.cpp`, initializes the native Switch graphics context, and hands
+control to `Minecraft::start()`; it is the NRO to use when you want to enter the
+game rather than run a hardware test.
 
 ```bash
-cmake --preset switch-bringup
-cmake --build --preset switch-bringup
+cmake --preset switch-release
+cmake --build --preset switch-release
 ```
 
 Copy the resulting NRO to the SD card:
@@ -96,21 +99,7 @@ Copy the resulting NRO to the SD card:
 sdmc:/switch/OptiCraft/OptiCraft.nro
 ```
 
-Launch it from the Homebrew Menu. It is a diagnostic, not the game.
-
-### 2. Full native game target
-
-Once bring-up works, configure and build the full port:
-
-```bash
-cmake --preset switch-release
-cmake --build --preset switch-release
-```
-
-The presets select the Switch toolchain, `PLATFORM=SWITCH`, and either the
-bring-up or full-game source set.
-
-### 3. Stage runtime data
+### 2. Stage runtime data
 
 The NRO does **not** embed the game's loose runtime data. For a playable full
 target, provide the following source directories yourself:
@@ -120,7 +109,7 @@ data/assets/
 data/resources/
 ```
 
-Then stage them next to the NRO:
+Then stage them next to the game NRO:
 
 ```bash
 cmake --build build/switch-release --target switch-data
@@ -150,6 +139,27 @@ sdmc:/switch/OptiCraft/
 The Switch resource backend reads `sdmc:/switch/OptiCraft/data`, and the
 client-policy backend stores saves/options at
 `sdmc:/switch/OptiCraft/.minecraft`.
+
+### Optional: hardware bring-up diagnostic
+
+Use this only to diagnose the toolchain, controller, framebuffer, or SD card;
+it intentionally does not enter the game:
+
+```bash
+cmake --preset switch-bringup
+cmake --build --preset switch-bringup
+```
+
+It produces `bin/switch/OptiCraft-bringup.nro`, which may safely coexist with
+the playable `OptiCraft.nro` on the SD card.
+
+The diagnostic reports both Horizon's native SD-filesystem result and whether
+the libnx `sdmc:` devoptab can be opened. It deliberately does **not** call
+`fsdevMountSdmc()` itself: libnx's default runtime has already initialized FS
+and mounted `sdmc:` before `main()` starts, and a second mount can produce a
+spurious libnx error. If native SD access succeeds but devoptab access fails,
+record the displayed `errno` and check the Switch/libnx environment rather
+than treating a repeated-mount result as an SD-card failure.
 
 > The `data/assets` and `data/resources` directories are not present in every
 > source checkout. `switch-data` can only copy data you have supplied; it cannot

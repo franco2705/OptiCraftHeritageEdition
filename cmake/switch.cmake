@@ -8,6 +8,10 @@ set(MC_LOG_LEVEL "0" CACHE STRING "Unified diagnostic verbosity")
 
 if(SWITCH_BRINGUP)
     set(SWITCH_SOURCES "${CMAKE_SOURCE_DIR}/src/switch/tools/SwitchBringup.cpp")
+    # Keep the diagnostic artifact distinct from the playable NRO.  Both
+    # targets otherwise share bin/switch/, making it easy to copy a bring-up
+    # test over the game and then expect it to start Minecraft.
+    set(SWITCH_ARTIFACT_NAME "OptiCraft-bringup")
     message(STATUS "Switch build: BRINGUP diagnostics")
 else()
     mcbeta_collect_platform_sources(SWITCH_SOURCES switch)
@@ -19,6 +23,7 @@ else()
     mcbeta_exclude_sources(SWITCH_SOURCES "[/\\]switch[/\\]tools[/\\]SwitchBringup\\.cpp$")
     mcbeta_exclude_remote_stats_sources(SWITCH_SOURCES)
     mcbeta_select_platform_backends(SWITCH_SOURCES SWITCH SWITCH SWITCH)
+    set(SWITCH_ARTIFACT_NAME "OptiCraft")
     message(STATUS "Switch build: FULL game")
 endif()
 
@@ -62,14 +67,19 @@ target_link_options(OptiCraft PRIVATE "-specs=${LIBNX}/switch.specs" -march=armv
 
 # Keep these values in the cache so release builds can supply their own
 # Homebrew Menu metadata without changing the build scripts.
-set(SWITCH_TITLE "OptiCraft Heritage Edition" CACHE STRING "NRO application title")
+if(SWITCH_BRINGUP)
+    set(_switch_default_title "OptiCraft Heritage Bring-up")
+else()
+    set(_switch_default_title "OptiCraft Heritage Edition")
+endif()
+set(SWITCH_TITLE "${_switch_default_title}" CACHE STRING "NRO application title")
 set(SWITCH_AUTHOR "OptiCraft Heritage contributors" CACHE STRING "NRO author")
 set(SWITCH_VERSION "1.1-switch-dev" CACHE STRING "NRO version")
 set(SWITCH_ICON "" CACHE FILEPATH "Optional 256x256 JPEG icon embedded in the NRO")
 
 set(SWITCH_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/bin/switch")
-set(SWITCH_NACP "${CMAKE_CURRENT_BINARY_DIR}/OptiCraft.nacp")
-set(SWITCH_NRO "${SWITCH_OUTPUT_DIR}/OptiCraft.nro")
+set(SWITCH_NACP "${CMAKE_CURRENT_BINARY_DIR}/${SWITCH_ARTIFACT_NAME}.nacp")
+set(SWITCH_NRO "${SWITCH_OUTPUT_DIR}/${SWITCH_ARTIFACT_NAME}.nro")
 
 add_custom_command(
     OUTPUT "${SWITCH_NACP}"
@@ -106,7 +116,7 @@ if(SWITCH_NXLINK)
     add_custom_target(switch-nxlink
         COMMAND "${SWITCH_NXLINK}" "${SWITCH_NRO}"
         DEPENDS switch-package
-        COMMENT "Sending OptiCraft.nro with nxlink"
+        COMMENT "Sending ${SWITCH_ARTIFACT_NAME}.nro with nxlink"
         USES_TERMINAL
         VERBATIM
     )
