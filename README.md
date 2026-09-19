@@ -100,6 +100,29 @@ sdmc:/switch/OptiCraft/OptiCraft.nro
 ```
 
 ### 2. Stage runtime data
+Launch it from the Homebrew Menu. It is a diagnostic, not the game.
+
+The diagnostic reports both Horizon's native SD-filesystem result and whether
+the libnx `sdmc:` devoptab can be opened. It deliberately does **not** call
+`fsdevMountSdmc()` itself: libnx's default runtime has already initialized FS
+and mounted `sdmc:` before `main()` starts, and a second mount can produce a
+spurious libnx error. If native SD access succeeds but devoptab access fails,
+record the displayed `errno` and check the Switch/libnx environment rather
+than treating a repeated-mount result as an SD-card failure.
+
+### 2. Full native game target
+
+Once bring-up works, configure and build the full port:
+
+```bash
+cmake --preset switch-release
+cmake --build --preset switch-release
+```
+
+The presets select the Switch toolchain, `PLATFORM=SWITCH`, and either the
+bring-up or full-game source set.
+
+### 3. Stage runtime data
 
 The NRO does **not** embed the game's loose runtime data. For a playable full
 target, provide the following source directories yourself:
